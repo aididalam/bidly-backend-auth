@@ -1,0 +1,25 @@
+name: Notify bidly root
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request root pointer update
+        env:
+          GH_TOKEN: ${{ secrets.BIDLY_ROOT_DISPATCH_TOKEN }}
+        run: |
+          gh api --method POST repos/aididalam/bidly/dispatches --input - <<'JSON'
+          {
+            "event_type": "submodule-main-updated",
+            "client_payload": {
+              "submodule_path": "bidly-backend/bidly-backend-auth"
+            }
+          }
+          JSON
