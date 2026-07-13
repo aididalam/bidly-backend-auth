@@ -1,3 +1,5 @@
+Root project: [bidly](https://github.com/aididalam/bidly)
+
 # Endpoints
 
 | Method | Path | Authentication |
