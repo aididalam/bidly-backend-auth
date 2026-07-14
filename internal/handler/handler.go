@@ -23,6 +23,7 @@ func New(auth service.AuthService, authMiddleware *middleware.Auth) http.Handler
 	mux.HandleFunc("POST /api/auth/login", h.login)
 	mux.Handle("POST /api/auth/logout", authMiddleware.Protect(http.HandlerFunc(h.logout)))
 	mux.Handle("GET /api/auth/me", authMiddleware.Protect(http.HandlerFunc(h.me)))
+	mux.Handle("POST /api/auth/change-password", authMiddleware.Protect(http.HandlerFunc(h.changePassword)))
 	return mux
 }
 
@@ -97,6 +98,38 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, user)
+}
+
+type changePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+func (h *Handler) changePassword(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.ClaimsFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized", "authentication is required")
+		return
+	}
+	var input changePasswordRequest
+	if err := decodeJSON(w, r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "request body is invalid")
+		return
+	}
+	if err := h.auth.ChangePassword(r.Context(), claims.Subject, input.CurrentPassword, input.NewPassword); err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidInput):
+			writeError(w, http.StatusBadRequest, "invalid_input", "current password and new password are invalid")
+		case errors.Is(err, service.ErrInvalidCredentials):
+			writeError(w, http.StatusUnauthorized, "invalid_credentials", "current password is incorrect")
+		case errors.Is(err, service.ErrUserNotFound):
+			writeError(w, http.StatusUnauthorized, "unauthorized", "authentication is required")
+		default:
+			writeError(w, http.StatusInternalServerError, "internal_error", "internal server error")
+		}
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, destination any) error {

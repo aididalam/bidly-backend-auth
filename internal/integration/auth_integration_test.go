@@ -94,6 +94,30 @@ func TestAuthFlowMySQL(t *testing.T) {
 		t.Fatalf("unexpected me response: %+v", current)
 	}
 
+	response = call(t, server.Client(), http.MethodPost, server.URL+"/api/auth/change-password", map[string]string{
+		"current_password": "secret123", "new_password": "newsecret123",
+	}, loggedIn.Token)
+	response.Body.Close()
+	if response.StatusCode != http.StatusNoContent {
+		t.Fatalf("change password status: %d", response.StatusCode)
+	}
+
+	response = call(t, server.Client(), http.MethodPost, server.URL+"/api/auth/login", map[string]string{
+		"email": email, "password": "secret123",
+	}, "")
+	response.Body.Close()
+	if response.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("old password login status: %d", response.StatusCode)
+	}
+
+	response = call(t, server.Client(), http.MethodPost, server.URL+"/api/auth/login", map[string]string{
+		"email": email, "password": "newsecret123",
+	}, "")
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("new password login status: %d", response.StatusCode)
+	}
+
 	response = call(t, server.Client(), http.MethodPost, server.URL+"/api/auth/logout", nil, loggedIn.Token)
 	response.Body.Close()
 	if response.StatusCode != http.StatusNoContent {

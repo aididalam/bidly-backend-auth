@@ -30,6 +30,7 @@ type AuthService interface {
 	Register(context.Context, string, string, string) (AuthResult, error)
 	Login(context.Context, string, string) (AuthResult, error)
 	Me(context.Context, string) (model.User, error)
+	ChangePassword(context.Context, string, string, string) error
 }
 
 type Service struct {
@@ -89,6 +90,33 @@ func (s *Service) Me(ctx context.Context, userID string) (model.User, error) {
 		return model.User{}, ErrUserNotFound
 	}
 	return user, err
+}
+
+func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
+	if currentPassword == "" || len(currentPassword) > 72 || len(newPassword) < 8 || len(newPassword) > 72 {
+		return ErrInvalidInput
+	}
+
+	user, err := s.users.FindByID(ctx, userID)
+	if errors.Is(err, repository.ErrNotFound) {
+		return ErrUserNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(currentPassword)) != nil {
+		return ErrInvalidCredentials
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	if err := s.users.UpdatePassword(ctx, userID, string(hash)); errors.Is(err, repository.ErrNotFound) {
+		return ErrUserNotFound
+	} else {
+		return err
+	}
 }
 
 func (s *Service) result(user model.User) (AuthResult, error) {

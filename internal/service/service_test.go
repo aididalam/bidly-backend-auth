@@ -12,9 +12,11 @@ import (
 )
 
 type fakeUsers struct {
-	user      model.User
-	createErr error
-	findErr   error
+	user        model.User
+	createErr   error
+	findErr     error
+	updateErr   error
+	updatedHash string
 }
 
 func (f *fakeUsers) Create(_ context.Context, name, email, hash string) (model.User, error) {
@@ -29,6 +31,13 @@ func (f *fakeUsers) FindByEmail(context.Context, string) (model.User, error) {
 }
 func (f *fakeUsers) FindByID(context.Context, string) (model.User, error) {
 	return f.user, f.findErr
+}
+func (f *fakeUsers) UpdatePassword(_ context.Context, _ string, hash string) error {
+	if f.updateErr != nil {
+		return f.updateErr
+	}
+	f.updatedHash = hash
+	return nil
 }
 
 type fakeIssuer struct{}
@@ -76,5 +85,23 @@ func TestLogin(t *testing.T) {
 	repo.findErr = repository.ErrNotFound
 	if _, err := svc.Login(context.Background(), "nobody@example.com", "secret123"); !errors.Is(err, ErrInvalidCredentials) {
 		t.Fatalf("expected invalid credentials for missing user, got %v", err)
+	}
+}
+
+func TestChangePassword(t *testing.T) {
+	hash, _ := bcrypt.GenerateFromPassword([]byte("secret123"), bcrypt.MinCost)
+	repo := &fakeUsers{user: model.User{ID: "id", PasswordHash: string(hash)}}
+	svc := New(repo, fakeIssuer{})
+	if err := svc.ChangePassword(context.Background(), "id", "secret123", "newsecret123"); err != nil {
+		t.Fatalf("change password: %v", err)
+	}
+	if bcrypt.CompareHashAndPassword([]byte(repo.updatedHash), []byte("newsecret123")) != nil {
+		t.Fatal("new password was not hashed")
+	}
+	if err := svc.ChangePassword(context.Background(), "id", "wrongpass", "newsecret123"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("expected invalid credentials, got %v", err)
+	}
+	if err := svc.ChangePassword(context.Background(), "id", "secret123", "short"); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected invalid input, got %v", err)
 	}
 }
