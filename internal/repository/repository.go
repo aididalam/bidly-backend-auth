@@ -20,6 +20,7 @@ type UserRepository interface {
 	Create(context.Context, string, string, string) (model.User, error)
 	FindByEmail(context.Context, string) (model.User, error)
 	FindByID(context.Context, string) (model.User, error)
+	UpdatePassword(context.Context, string, string) error
 }
 
 type MySQL struct {
@@ -56,6 +57,23 @@ func (r *MySQL) FindByID(ctx context.Context, id string) (model.User, error) {
 	return scanUser(r.db.QueryRowContext(ctx,
 		`SELECT id, name, email, password_hash, created_at, updated_at FROM users WHERE id = ?`, id,
 	))
+}
+
+func (r *MySQL) UpdatePassword(ctx context.Context, id, passwordHash string) error {
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE users SET password_hash = ? WHERE id = ?`, passwordHash, id,
+	)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 type rowScanner interface {

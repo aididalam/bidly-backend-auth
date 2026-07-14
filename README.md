@@ -8,6 +8,7 @@ Root project: [bidly](https://github.com/aididalam/bidly)
 | POST | `/api/auth/login` | No |
 | POST | `/api/auth/logout` | Bearer JWT |
 | GET | `/api/auth/me` | Bearer JWT |
+| POST | `/api/auth/change-password` | Bearer JWT |
 
 # Structure
 
