@@ -19,12 +19,17 @@ type Handler struct {
 func New(auth service.AuthService, authMiddleware *middleware.Auth) http.Handler {
 	h := &Handler{auth: auth}
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", health)
 	mux.HandleFunc("POST /api/auth/register", h.register)
 	mux.HandleFunc("POST /api/auth/login", h.login)
 	mux.Handle("POST /api/auth/logout", authMiddleware.Protect(http.HandlerFunc(h.logout)))
 	mux.Handle("GET /api/auth/me", authMiddleware.Protect(http.HandlerFunc(h.me)))
 	mux.Handle("POST /api/auth/change-password", authMiddleware.Protect(http.HandlerFunc(h.changePassword)))
 	return mux
+}
+
+func health(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }
 
 type registerRequest struct {

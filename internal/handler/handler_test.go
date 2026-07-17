@@ -64,6 +64,16 @@ func TestPublicEndpoints(t *testing.T) {
 	}
 }
 
+func TestHealthz(t *testing.T) {
+	manager := token.NewManager(strings.Repeat("s", 32), time.Hour)
+	h := New(&fakeAuth{}, middleware.NewAuth(manager))
+
+	response := request(h, http.MethodGet, "/healthz", "", "")
+	if response.Code != http.StatusOK || response.Body.Len() != 0 {
+		t.Fatalf("healthz response: %d %q", response.Code, response.Body.String())
+	}
+}
+
 func TestProtectedEndpoints(t *testing.T) {
 	manager := token.NewManager(strings.Repeat("s", 32), time.Hour)
 	value, _ := manager.Issue("id", "u@example.com")
