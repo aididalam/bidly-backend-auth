@@ -57,7 +57,8 @@ jobs:
           TAG: ${{ steps.image.outputs.tag }}
         run: |
           sed -i "s|image: $IMAGE:.*|image: $IMAGE:$TAG|" "$DEPLOYMENT_FILE"
-          sed -i "s|app.kubernetes.io/version: .*|app.kubernetes.io/version: $TAG|" "$DEPLOYMENT_FILE"
+          VERSION="v${TAG#main-}"
+          sed -i "s|app.kubernetes.io/version: .*|app.kubernetes.io/version: $VERSION|" "$DEPLOYMENT_FILE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "$DEPLOYMENT_FILE"
